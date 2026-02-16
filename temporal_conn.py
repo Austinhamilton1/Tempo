@@ -54,7 +54,7 @@ def temporal_conn(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
     :return: Map from node to connectivity value.
     :rtype: dict[Any, float]
     '''
-    tc = { node: 1.0 for node in graph.nodes }
+    tc = { node: 0.0 for node in graph.nodes }
     for _ in range(epochs):
         for node in graph.nodes:
             # Start the random walk
