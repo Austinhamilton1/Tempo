@@ -60,7 +60,7 @@ def temporal_conn(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
             # Start the random walk
             current_node = node
             t_current = 0
-            for r in range(R):
+            for _ in range(R):
                 # Sample edges that exist in the future from the current time stamp
                 temporal_edges = [
                     (edge, t)
