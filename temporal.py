@@ -216,7 +216,7 @@ def redundancy(graph: nx.Graph) -> dict[any, int]:
             tr[v] += unique_v
 
     N = sum(tr.values())
-    return { node: 1 - (tr[node] / N) for node in tr }
+    return { node: tr[node] / N for node in tr }
 
 
 # Create temporal graph
@@ -238,6 +238,6 @@ G.add_edge('C', 'D', t=(0, 1, 4))
 
 r = redundancy(G)
 e = eventual_energy(G)
-kill_scores = { node: r[node] - e[node] for node in G.nodes }
+kill_scores = { node: 1 - r[node] - e[node] for node in G.nodes }
 
 print(kill_scores)
