@@ -41,7 +41,7 @@ def vis_graph(G: nx.Graph, time_stamps: int, destination_folder: str) -> None:
         plt.savefig(f'{destination_folder}/frame_{t}.png')
         plt.close()
 
-def temporal_conn(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
+def connect(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
     '''
     Calculate the temporal connectivity of each node in a temporal graph.
     
@@ -98,6 +98,127 @@ def temporal_conn(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
 
     return tc
 
+def surprise(graph: nx.Graph) -> dict[any, int]:
+    '''
+    Calculate the temporal surprise factor of all nodes in a temporal graph.
+    
+    :param graph: Graph to calculate
+    :type graph: nx.Graph
+    :return: Map from node to temporal surprise value.
+    :rtype: dict[Any, int]
+    '''
+    ts = {}
+    for node in graph.nodes:
+        # Initialize the surprise factor
+        ts[node] = 0
+
+        # See which time stamps have a mismatch between edge and node
+        for edge in graph.edges(node):
+            edge_idx = 0
+            for t in graph.nodes[node]['t']:
+                if edge_idx < len(graph.edges[edge]['t']) and graph.edges[edge]['t'][edge_idx] == t:
+                    edge_idx += 1
+                    continue
+                else:
+                    ts[node] += 1
+    return ts
+
+def events(graph: nx.Graph) -> list[tuple]:
+    '''
+    Generate a stream of events from a temporal graph.
+
+    :param graph: Graph to stream.
+    :type graph: nx.Graph
+    :return: List of all graph events that occur in the graph.
+    :rtype: list[tuple]
+    '''
+    e = []
+    t_end = max([t for node in graph.nodes for t in graph.nodes[node]['t']])
+    
+    '''Calculate all node events.'''
+    for node in graph.nodes:
+        if not graph.nodes[node]['t'][0] == 0:
+            e.append(('insert', 'node', node, graph.nodes[node]['t'][0]))
+        for i in range(1, len(graph.nodes[node]['t'])):
+            t = graph.nodes[node]['t'][i]
+            last_seen = graph.nodes[node]['t'][i-1]
+            if t - last_seen > 1:
+                e.append(('delete', 'node', node, last_seen+1))
+                e.append(('insert', 'node', node, t))
+        if t < t_end:
+            e.append(('delete', 'node', node, t+1))
+    
+    '''Calculate all edge events.'''
+    for edge in graph.edges:
+        if not graph.edges[edge]['t'][0] == 0:
+            e.append(('insert', 'edge', edge, graph.edges[edge]['t'][0]))
+        for i in range(1, len(graph.edges[edge]['t'])):
+            t = graph.edges[edge]['t'][i]
+            last_seen = graph.edges[edge]['t'][i-1]
+            if t - last_seen > 1:
+                e.append(('delete', 'edge', edge, last_seen+1))
+                e.append(('insert', 'edge', edge, t))
+        if t < t_end:
+            e.append(('delete', 'edge', edge, t+1))
+
+    return sorted(e, key=lambda event: event[3])
+
+def eventual_energy(graph: nx.Graph) -> dict[any, float]:
+    '''
+    For each node, calculate how much it partakes in temporal events.
+    
+    :param graph: Temporal graph to calculate eventual_energy for.
+    :type graph: nx.Graph
+    :return: Map from node to eventual_energy.
+    :rtype: dict[Any, float]
+    '''
+    te = { node: 0.0 for node in graph.nodes }
+    e = events(graph)
+    N = sum([1 if event[1] == 'node' else 2 for event in e])
+    p_x = 1.0 / N
+    for event in e:
+        _, e_type, e_target, _ = event
+        if e_type == 'node':
+            te[e_target] -= float(p_x * np.log(p_x))
+        elif e_type == 'edge':
+            u, v = e_target
+            te[u] -= float(p_x * np.log(p_x))
+            te[v] -= float(p_x * np.log(p_x))
+    return te
+
+def redundancy(graph: nx.Graph) -> dict[any, int]:
+    '''
+    Docstring for redundancy
+    
+    :param graph: Description
+    :type graph: nx.Graph
+    :return: Description
+    :rtype: dict[Any, int]
+    '''
+    tr = { node: 0 for node in graph.nodes }
+    for u in graph.nodes:
+        for v in graph.nodes:
+            if u == v:
+                continue
+
+            temporal_neighbors_u = {
+                node for node in graph.neighbors(u) if graph.nodes[u]['t'][0] < graph.get_edge_data(u, node)['t'][-1] and node != v
+            }
+
+            temporal_neighbors_v = {
+                node for node in graph.neighbors(v) if graph.nodes[v]['t'][0] < graph.get_edge_data(v, node)['t'][-1] and node != u
+            }
+
+            unique_u = len(temporal_neighbors_u - temporal_neighbors_v)
+            unique_v = len(temporal_neighbors_v - temporal_neighbors_u)
+
+            tr[u] += unique_u
+            tr[v] += unique_v
+
+    N = sum(tr.values())
+    return { node: 1 - (tr[node] / N) for node in tr }
+
+
 # Create temporal graph
 G = nx.Graph()
 
@@ -106,6 +227,7 @@ G.add_node('A', t=(0, 1, 2, 3, 4))
 G.add_node('B', t=(0, 1, 2, 3, 4))
 G.add_node('C', t=(0, 1, 2, 3, 4))
 G.add_node('D', t=(0, 1, 2, 3, 4))
+G.add_node('E', t=(0, 1))
 
 # Add temporal edges
 G.add_edge('A', 'B', t=(0, 1, 2, 3, 4))
@@ -114,11 +236,8 @@ G.add_edge('B', 'D', t=(0, 1, 2, 3, 4))
 G.add_edge('B', 'C', t=(0, 3, 4))
 G.add_edge('C', 'D', t=(0, 1, 4))
 
-with open('test.txt', 'w') as file:
-    for i in range(1, 21):
-        for _ in range(5):
-            temporal_connectivity = temporal_conn(G, 5, i)
-            file.write(f'Epochs: {i}:\n')
-            file.write(str(temporal_connectivity))
-            file.write('\n')
-        file.write('\n')
+r = redundancy(G)
+e = eventual_energy(G)
+kill_scores = { node: r[node] - e[node] for node in G.nodes }
+
+print(kill_scores)
