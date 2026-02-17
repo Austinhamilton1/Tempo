@@ -188,11 +188,11 @@ def eventual_energy(graph: nx.Graph) -> dict[any, float]:
 
 def redundancy(graph: nx.Graph) -> dict[any, int]:
     '''
-    Docstring for redundancy
+    Determine how redundant a node is (does it act structurally like another node(s)).
     
-    :param graph: Description
+    :param graph: The temporal graph to check against.
     :type graph: nx.Graph
-    :return: Description
+    :return: Map from node to temporal redundancy.
     :rtype: dict[Any, int]
     '''
     tr = { node: 0 for node in graph.nodes }
