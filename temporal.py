@@ -99,31 +99,6 @@ def connect(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
 
     return tc
 
-def surprise(graph: nx.Graph) -> dict[any, int]:
-    '''
-    Calculate the temporal surprise factor of all nodes in a temporal graph.
-    
-    :param graph: Graph to calculate
-    :type graph: nx.Graph
-    :return: Map from node to temporal surprise value.
-    :rtype: dict[Any, int]
-    '''
-    ts = {}
-    for node in graph.nodes:
-        # Initialize the surprise factor
-        ts[node] = 0
-
-        # See which time stamps have a mismatch between edge and node
-        for edge in graph.edges(node):
-            edge_idx = 0
-            for t in graph.nodes[node]['t']:
-                if edge_idx < len(graph.edges[edge]['t']) and graph.edges[edge]['t'][edge_idx] == t:
-                    edge_idx += 1
-                    continue
-                else:
-                    ts[node] += 1
-    return ts
-
 def events(graph: nx.Graph) -> list[tuple]:
     '''
     Generate a stream of events from a temporal graph.
