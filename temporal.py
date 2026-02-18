@@ -1,6 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+from collections import defaultdict
 
 def slice_graph(graph: nx.Graph, t: int) -> nx.Graph:
     '''
@@ -163,81 +164,172 @@ def events(graph: nx.Graph) -> list[tuple]:
 
     return sorted(e, key=lambda event: event[3])
 
-def eventual_energy(graph: nx.Graph) -> dict[any, float]:
+def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
     '''
     For each node, calculate how much it partakes in temporal events.
     
     :param graph: Temporal graph to calculate eventual_energy for.
     :type graph: nx.Graph
+    :param clusters: A partitioning of the temporal graph.
+    :type: dict[any, int]
     :return: Map from node to eventual_energy.
     :rtype: dict[Any, float]
     '''
-    te = { node: 0.0 for node in graph.nodes }
+    te = { v: 0.0 for v in graph.nodes }
+
     e = events(graph)
-    N = sum([1 if event[1] == 'node' else 2 for event in e])
-    p_x = 1.0 / N
-    for event in e:
-        _, e_type, e_target, _ = event
-        if e_type == 'node':
-            te[e_target] -= float(p_x * np.log(p_x))
-        elif e_type == 'edge':
-            u, v = e_target
-            te[u] -= float(p_x * np.log(p_x))
-            te[v] -= float(p_x * np.log(p_x))
+
+    if clusters is None:
+        N = len(e)
+        p_x = {
+            ('insert', 'node'): 0.0,
+            ('delete', 'node'): 0.0,
+            ('insert', 'edge'): 0.0,
+            ('delete', 'edge'): 0.0,
+        }
+
+        # Calculate the probability of an event being a certain type
+        for event in e:
+            e_type, e_target, e_data, _ = event
+            p_x[(e_type, e_target)] += 1 / N
+
+        for event in e:
+            e_type, e_target, e_data, _ = event
+            if e_target == 'node':
+                # If the target is a node, update the node with the event entropy
+                te[e_data] -= float(p_x[(e_type, e_target)] * np.log2(p_x[(e_type, e_target)]))
+            elif e_target == 'edge':
+                # If the target is an edge, update both nodes with the event entropy
+                u, v = e_data
+                te[u] -= float(p_x[(e_type, e_target)] * np.log2(p_x[(e_type, e_target)]))
+                te[v] -= float(p_x[(e_type, e_target)] * np.log2(p_x[(e_type, e_target)]))
+    else:
+        # Calculate the number of nodes in each cluster
+        N_clusters = { n: 0 for n in clusters.values() }
+        for node in graph.nodes:
+            N_clusters[clusters[node]] += 1
+
+        # Calculate the number of events that occur in each cluster
+        E_clusters = { n: 0 for n in clusters.values() }
+        for _, e_target, e_data, _ in e:
+            if e_target == 'node':
+                E_clusters[clusters[e_data]] += 1
+            elif e_target == 'edge':
+                # For an edge event, each cluster receives half of the event (totalling a single event)
+                u, v = e_data
+                E_clusters[clusters[u]] += 0.5
+                E_clusters[clusters[v]] += 0.5
+
+        # P(x) is the probability of node n being a member of cluster C
+        p_x = { n: N_clusters[n] / graph.number_of_nodes() for n in clusters.values() }
+
+        # P(x, y) is the probability of node n being apart of event e where n and e are both members
+        # of cluster C
+        p_xy = {
+            n: {
+                ('insert', 'node'): 0.0,
+                ('delete', 'node'): 0.0,
+                ('insert', 'edge'): 0.0,
+                ('delete', 'edge'): 0.0,
+            }
+            for n in clusters.values()
+        }
+
+        for e_type, e_target, e_data, _ in e:
+            if e_target == 'node':
+                p_xy[clusters[e_data]][(e_type, e_target)] += 1 / E_clusters[clusters[e_data]] * p_x[clusters[e_data]]
+            elif e_target == 'edge':
+                u, v = e_data
+                p_xy[clusters[u]][(e_type, e_target)] += 0.5 / E_clusters[clusters[u]] * p_x[clusters[u]]
+                p_xy[clusters[v]][(e_type, e_target)] += 0.5 / E_clusters[clusters[v]] * p_x[clusters[v]]
+
+        # Calculate the entropy of each node given its event type within a cluster
+        for e_type, e_target, e_data, _ in e:
+            if e_target == 'node':
+                # If the target is a node, update the node with the event entropy
+                te[e_data] -= float(
+                    p_xy[clusters[e_data]][(e_type, e_target)] * 
+                    np.log2(
+                        p_xy[clusters[e_data]][(e_type, e_target)] /
+                        p_x[clusters[e_data]]
+                    )
+                )
+            elif e_target == 'edge':
+                # If the target is an edge, update both nodes with the event entropy
+                u, v = e_data
+                te[u] -= float(
+                    p_xy[clusters[u]][(e_type, e_target)] * 
+                    np.log2(
+                        p_xy[clusters[u]][(e_type, e_target)] /
+                        p_x[clusters[u]]
+                    )
+                )
+                te[v] -= float(
+                    p_xy[clusters[v]][(e_type, e_target)] * 
+                    np.log2(
+                        p_xy[clusters[v]][(e_type, e_target)] /
+                        p_x[clusters[v]]
+                    )
+                )
+                
     return te
-
-def redundancy(graph: nx.Graph) -> dict[any, int]:
-    '''
-    Determine how redundant a node is (does it act structurally like another node(s)).
-    
-    :param graph: The temporal graph to check against.
-    :type graph: nx.Graph
-    :return: Map from node to temporal redundancy.
-    :rtype: dict[Any, int]
-    '''
-    tr = { node: 0 for node in graph.nodes }
-    for u in graph.nodes:
-        for v in graph.nodes:
-            if u == v:
-                continue
-
-            temporal_neighbors_u = {
-                node for node in graph.neighbors(u) if graph.nodes[u]['t'][0] < graph.get_edge_data(u, node)['t'][-1] and node != v
-            }
-
-            temporal_neighbors_v = {
-                node for node in graph.neighbors(v) if graph.nodes[v]['t'][0] < graph.get_edge_data(v, node)['t'][-1] and node != u
-            }
-
-            unique_u = len(temporal_neighbors_u - temporal_neighbors_v)
-            unique_v = len(temporal_neighbors_v - temporal_neighbors_u)
-
-            tr[u] += unique_u
-            tr[v] += unique_v
-
-    N = sum(tr.values())
-    return { node: tr[node] / N for node in tr }
-
 
 # Create temporal graph
 G = nx.Graph()
 
 # Add nodes
-G.add_node('A', t=(0, 1, 2, 3, 4))
-G.add_node('B', t=(0, 1, 2, 3, 4))
-G.add_node('C', t=(0, 1, 2, 3, 4))
-G.add_node('D', t=(0, 1, 2, 3, 4))
-G.add_node('E', t=(0, 1))
+G.add_node('a', t=(0, 1, 2, 3))
+G.add_node('b', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('c', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('d', t=(1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('e', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('f', t=(3, 4, 5, 7, 8, 9))
+G.add_node('g', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('h', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('i', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('j', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_node('k', t=(6, 7, 8, 9))
+G.add_node('l', t=(5, 6, 7, 8, 9))
+G.add_node('m', t=(6, 7, 8, 9))
 
-# Add temporal edges
-G.add_edge('A', 'B', t=(0, 1, 2, 3, 4))
-G.add_edge('A', 'D', t=(0, 1, 2, 3, 4))
-G.add_edge('B', 'D', t=(0, 1, 2, 3, 4))
-G.add_edge('B', 'C', t=(0, 3, 4))
-G.add_edge('C', 'D', t=(0, 1, 4))
+# Add edges
+G.add_edge('a', 'b', t=(0, 1, 2, 3))
+G.add_edge('a', 'd', t=(0, 1, 2, 3))
+G.add_edge('a', 'f', t=(0, 1, 2))
+G.add_edge('b', 'c', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_edge('b', 'f', t=(3, 4, 5, 8, 9))
+G.add_edge('c', 'd', t=(1, 2, 3, 4, 6, 7, 8, 9))
+G.add_edge('c', 'e', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_edge('d', 'e', t=(1, 3, 5, 7, 9))
+G.add_edge('d', 'm', t=(6, 7, 8, 9))
+G.add_edge('e', 'f', t=(3, 4, 5, 6, 7, 8, 9))
+G.add_edge('e', 'g', t=(4, 5, 6, 7, 8, 9))
+G.add_edge('e', 'k', t=(6, 7, 8, 9))
+G.add_edge('g', 'h', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_edge('g', 'i', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_edge('g', 'j', t=(0, 1, 2, 3, 4, 7, 8, 9))
+G.add_edge('h', 'i', t=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+G.add_edge('i', 'j', t=(0, 1, 2, 3, 4, 5, 9))
+G.add_edge('k', 'l', t=(6, 7, 8, 9))
+G.add_edge('k', 'm', t=(8, 9))
+G.add_edge('l', 'm', t=(6, 7, 9))
 
-r = redundancy(G)
-e = eventual_energy(G)
-kill_scores = { node: 1 - r[node] - e[node] for node in G.nodes }
+clusters = {
+    'a': 1,
+    'b': 1,
+    'c': 1,
+    'd': 1,
+    'e': 1,
+    'f': 1,
+    'g': 2,
+    'h': 2,
+    'i': 2,
+    'j': 2,
+    'k': 3,
+    'l': 3,
+    'm': 3,
+}
 
-print(kill_scores)
+e = entropy(G, clusters=clusters)
+
+print(e)
