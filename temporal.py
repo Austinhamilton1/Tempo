@@ -165,7 +165,7 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
 
         # Calculate the probability of an event being a certain type
         for event in e:
-            e_type, e_target, e_data, _ = event
+            e_type, e_target, e_data, t = event
             p_x[(e_type, e_target)] += 1 / N
 
         for event in e:
@@ -305,6 +305,6 @@ clusters = {
     'm': 3,
 }
 
-e = entropy(G, clusters=clusters)
+e = entropy(G)
 
 print(e)
