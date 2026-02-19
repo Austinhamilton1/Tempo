@@ -208,7 +208,7 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
             if e_target == 'node':
                 # Node events affect one bucket so add 1 / N to the bucket
                 delta_t = t - last_t.get(e_data, 0)
-                if delta_t / delta_m[e_data] <= 1:
+                if delta_t <= delta_m[e_data]:
                     p_et[(e_type, e_target)]['short'] += 1 / N
                 else:
                     p_et[(e_type, e_target)]['long'] += 1 / N
@@ -219,14 +219,14 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
                 u, v = e_data
 
                 delta_t = t - last_t.get(u, 0)
-                if delta_t / delta_m[u] <= 1:
+                if delta_t <= delta_m[u]:
                     p_et[(e_type, e_target)]['short'] += 0.5 / N
                 else:
                     p_et[(e_type, e_target)]['long'] += 0.5 / N
                 last_t[u] = t
 
                 delta_t = t - last_t.get(v, 0)
-                if delta_t / delta_m[v] <= 1:
+                if delta_t <= delta_m[v]:
                     p_et[(e_type, e_target)]['short'] += 0.5 / N
                 else:
                     p_et[(e_type, e_target)]['long'] += 0.5 / N
@@ -240,7 +240,7 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
             if e_target == 'node':
                 # If target is a node, update the node with the event entropy
                 delta_t = t - last_t.get(e_data, 0)
-                if delta_t / delta_m[e_data] <= 1:
+                if delta_t <= delta_m[e_data]:
                     te[e_data] -= float(
                         p_et[(e_type, e_target)]['short'] *
                         np.log2(
@@ -262,7 +262,7 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
                 u, v = e_data
 
                 delta_t = t - last_t.get(u, 0)
-                if delta_t / delta_m[u] <= 1:
+                if delta_t <= delta_m[u]:
                     te[u] -= float(
                         p_et[(e_type, e_target)]['short'] *
                         np.log2(
@@ -281,7 +281,7 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
                 last_t[u] = t
 
                 delta_t = t - last_t.get(v, 0)
-                if delta_t / delta_m[v] <= 1:
+                if delta_t <= delta_m[v]:
                     te[v] -= float(
                         p_et[(e_type, e_target)]['short'] *
                         np.log2(
