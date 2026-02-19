@@ -156,6 +156,8 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
 
     if clusters is None:
         N = len(e)
+
+        # P(e = E) is the probability of an event e being type E
         p_e = {
             ('insert', 'node'): 0.0,
             ('delete', 'node'): 0.0,
@@ -170,6 +172,9 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
             # Calculate the probability of an event being a certain type
             e_type, e_target, e_data, t = event
             p_e[(e_type, e_target)] += 1 / N
+
+            # Need to calculate the mean event time per node to determine
+            # if an event is a long-term or short term event
             if e_target == 'node':
                 delta_t = t - last_t.get(e_data, 0)
                 delta_v[e_data].append(delta_t)
@@ -187,7 +192,8 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
             
         delta_m = { v: np.mean(delta_v[v]) for v in delta_v }
 
-        p_te = {
+        # P(e = E, t = T) is the probability of event e being type E and delta_t = {short-term, long-te}
+        p_et = {
             e: {
                 'short': 0,
                 'long': 0,
@@ -199,68 +205,75 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
         for event in e:
             e_type, e_target, e_data, t = event
             if e_target == 'node':
+                # Node events affect one bucket so add 1 / N to the bucket
                 delta_t = t - last_t.get(e_data, 0)
                 if delta_t / delta_m[e_data] <= 1:
-                    p_te[(e_type, e_target)]['short'] += 1 / N
+                    p_et[(e_type, e_target)]['short'] += 1 / N
                 else:
-                    p_te[(e_type, e_target)]['long'] += 1 / N
+                    p_et[(e_type, e_target)]['long'] += 1 / N
                 last_t[e_data] = t
             elif e_target == 'edge':
+                # Edge events affect potentially two buckets 
+                # (bucket for u, bucket for v) so add 0.5 / N to the bucket
                 u, v = e_data
 
                 delta_t = t - last_t.get(u, 0)
                 if delta_t / delta_m[u] <= 1:
-                    p_te[(e_type, e_target)]['short'] += 0.5 / N
+                    p_et[(e_type, e_target)]['short'] += 0.5 / N
                 else:
-                    p_te[(e_type, e_target)]['long'] += 0.5 / N
+                    p_et[(e_type, e_target)]['long'] += 0.5 / N
                 last_t[u] = t
 
                 delta_t = t - last_t.get(v, 0)
                 if delta_t / delta_m[v] <= 1:
-                    p_te[(e_type, e_target)]['short'] += 0.5 / N
+                    p_et[(e_type, e_target)]['short'] += 0.5 / N
                 else:
-                    p_te[(e_type, e_target)]['short'] += 0.5 / N
+                    p_et[(e_type, e_target)]['long'] += 0.5 / N
                 last_t[v] = t
 
+        '''Calculate conditional entropy of H(T|E). This is the predictabilty of the time of an event given its type.'''
+        '''Temporal GNNs try to predict events in time so we are given event type (e.g., predict when an edge will be inserted here).'''
         last_t = {}
         for event in e:
             e_type, e_target, e_data, t = event
             if e_target == 'node':
+                # If target is a node, update the node with the event entropy
                 delta_t = t - last_t.get(e_data, 0)
                 if delta_t / delta_m[e_data] <= 1:
                     te[e_data] -= float(
-                        p_te[(e_type, e_target)]['short'] *
+                        p_et[(e_type, e_target)]['short'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['short'] / 
+                            p_et[(e_type, e_target)]['short'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
                 else:
                     te[e_data] -= float(
-                        p_te[(e_type, e_target)]['long'] *
+                        p_et[(e_type, e_target)]['long'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['long'] / 
+                            p_et[(e_type, e_target)]['long'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
                 last_t[e_data] = t
             elif e_target == 'edge':
+                # If target is an edge, update both nodes affected with the event entropy
                 u, v = e_data
 
                 delta_t = t - last_t.get(u, 0)
                 if delta_t / delta_m[u] <= 1:
                     te[u] -= float(
-                        p_te[(e_type, e_target)]['short'] *
+                        p_et[(e_type, e_target)]['short'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['short'] / 
+                            p_et[(e_type, e_target)]['short'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
                 else:
                     te[u] -= float(
-                        p_te[(e_type, e_target)]['long'] *
+                        p_et[(e_type, e_target)]['long'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['long'] / 
+                            p_et[(e_type, e_target)]['long'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
@@ -269,17 +282,17 @@ def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
                 delta_t = t - last_t.get(v, 0)
                 if delta_t / delta_m[v] <= 1:
                     te[v] -= float(
-                        p_te[(e_type, e_target)]['short'] *
+                        p_et[(e_type, e_target)]['short'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['short'] / 
+                            p_et[(e_type, e_target)]['short'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
                 else:
                     te[v] -= float(
-                        p_te[(e_type, e_target)]['long'] *
+                        p_et[(e_type, e_target)]['long'] *
                         np.log2(
-                            p_te[(e_type, e_target)]['long'] / 
+                            p_et[(e_type, e_target)]['long'] / 
                             p_e[(e_type, e_target)]
                         )
                     )
