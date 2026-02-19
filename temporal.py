@@ -141,7 +141,8 @@ def events(graph: nx.Graph) -> list[tuple]:
 
 def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
     '''
-    For each node, calculate how much it partakes in temporal events.
+    For each node, calculate how much predictability information would be lost
+    if that node was deleted.
     
     :param graph: Temporal graph to calculate eventual_energy for.
     :type graph: nx.Graph
