@@ -42,6 +42,33 @@ def vis_graph(G: nx.Graph, time_stamps: int, destination_folder: str) -> None:
         plt.savefig(f'{destination_folder}/frame_{t}.png')
         plt.close()
 
+def basic_example_graph() -> nx.Graph:
+    '''
+    This is a really simple graph that is a good example of entropy.
+    It is a square with a diagonal between the top right and bottom left node.
+    The bottom right node disconnects from the graph, then reconnects.
+    One edge changes at a time.
+
+    :return: The graph described above.
+    :rtype: Graph
+    '''
+    G = nx.Graph()
+
+    # Add nodes
+    G.add_node('a', t=(0, 1, 2, 3, 4))
+    G.add_node('b', t=(0, 1, 2, 3, 4))
+    G.add_node('c', t=(0, 1, 2, 3, 4))
+    G.add_node('d', t=(0, 1, 2, 3, 4))
+
+    # Add edges
+    G.add_edge('a', 'b', t=(0, 1, 2, 3, 4))
+    G.add_edge('a', 'd', t=(0, 1, 2, 3, 4))
+    G.add_edge('b', 'c', t=(0, 3, 4))
+    G.add_edge('b', 'd', t=(0, 1, 2, 3, 4))
+    G.add_edge('c', 'd', t=(0, 1, 4))
+
+    return G
+
 def connect(graph: nx.Graph, R: int, epochs: int) -> dict[any, float]:
     '''
     Calculate the temporal connectivity of each node in a temporal graph.
@@ -139,233 +166,161 @@ def events(graph: nx.Graph) -> list[tuple]:
 
     return sorted(e, key=lambda event: event[3])
 
-def entropy(graph: nx.Graph, clusters: dict[any, int]=None) -> dict[any, float]:
+def entropy(graph: nx.Graph) -> dict[any, float]:
     '''
     For each node, calculate how much predictability information would be lost
     if that node was deleted.
     
     :param graph: Temporal graph to calculate eventual_energy for.
     :type graph: nx.Graph
-    :param clusters: A partitioning of the temporal graph.
-    :type: dict[any, int]
-    :return: Map from node to eventual_energy.
+    :return: Map from node to temporal entropy.
     :rtype: dict[Any, float]
     '''
     te = { v: 0.0 for v in graph.nodes }
 
     e = events(graph)
+    N = len(e)
 
-    if clusters is None:
-        N = len(e)
+    # P(e = E) is the probability of an event e being type E
+    p_e = {
+        ('insert', 'node'): 0.0,
+        ('delete', 'node'): 0.0,
+        ('insert', 'edge'): 0.0,
+        ('delete', 'edge'): 0.0,
+    }
+    
+    delta_v = defaultdict(list)
+    last_t = {}
 
-        # P(e = E) is the probability of an event e being type E
-        p_e = {
-            ('insert', 'node'): 0.0,
-            ('delete', 'node'): 0.0,
-            ('insert', 'edge'): 0.0,
-            ('delete', 'edge'): 0.0,
-        }
+    for event in e:
+        # Calculate the probability of an event being a certain type
+        e_type, e_target, e_data, t = event
+        p_e[(e_type, e_target)] += 1 / N
+
+        # Need to calculate the mean event time per node to determine
+        # if an event is a long-term or short term event
+        if e_target == 'node':
+            delta_t = t - last_t.get(e_data, 0)
+            delta_v[e_data].append(delta_t)
+            last_t[e_data] = t
+        elif e_target == 'edge':
+            u, v = e_data
+
+            delta_t = t - last_t.get(u, 0)
+            delta_v[u].append(delta_t)
+            last_t[u] = t
+
+            delta_t = t - last_t.get(v, 0)
+            delta_v[v].append(delta_t)
+            last_t[v] = t
         
-        delta_v = defaultdict(list)
-        last_t = {}
+    delta_m = { v: np.mean(delta_v[v]) for v in delta_v }
 
-        for event in e:
-            # Calculate the probability of an event being a certain type
-            e_type, e_target, e_data, t = event
-            p_e[(e_type, e_target)] += 1 / N
-
-            # Need to calculate the mean event time per node to determine
-            # if an event is a long-term or short term event
-            if e_target == 'node':
-                delta_t = t - last_t.get(e_data, 0)
-                delta_v[e_data].append(delta_t)
-                last_t[e_data] = t
-            elif e_target == 'edge':
-                u, v = e_data
-
-                delta_t = t - last_t.get(u, 0)
-                delta_v[u].append(delta_t)
-                last_t[u] = t
-
-                delta_t = t - last_t.get(v, 0)
-                delta_v[v].append(delta_t)
-                last_t[v] = t
-            
-        delta_m = { v: np.mean(delta_v[v]) for v in delta_v }
-
-        # P(e = E, t = T) is the probability of event e being type E and delta_t = {short-term, long-te}
-        p_et = {
-            e: {
-                'short': 0,
-                'long': 0,
-            }
-            for e in p_e
+    # P(e = E, t = T) is the probability of event e being type E and delta_t = {short-term, long-te}
+    p_et = {
+        e: {
+            'short': 0,
+            'long': 0,
         }
+        for e in p_e
+    }
 
-        last_t = {}
-        for event in e:
-            e_type, e_target, e_data, t = event
-            if e_target == 'node':
-                # Node events affect one bucket so add 1 / N to the bucket
-                delta_t = t - last_t.get(e_data, 0)
-                if delta_t <= delta_m[e_data]:
-                    p_et[(e_type, e_target)]['short'] += 1 / N
-                else:
-                    p_et[(e_type, e_target)]['long'] += 1 / N
-                last_t[e_data] = t
-            elif e_target == 'edge':
-                # Edge events affect potentially two buckets 
-                # (bucket for u, bucket for v) so add 0.5 / N to the bucket
-                u, v = e_data
+    last_t = {}
+    for event in e:
+        e_type, e_target, e_data, t = event
+        if e_target == 'node':
+            # Node events affect one bucket so add 1 / N to the bucket
+            delta_t = t - last_t.get(e_data, 0)
+            if delta_t <= delta_m[e_data]:
+                p_et[(e_type, e_target)]['short'] += 1 / N
+            else:
+                p_et[(e_type, e_target)]['long'] += 1 / N
+            last_t[e_data] = t
+        elif e_target == 'edge':
+            # Edge events affect potentially two buckets 
+            # (bucket for u, bucket for v) so add 0.5 / N to the bucket
+            u, v = e_data
 
-                delta_t = t - last_t.get(u, 0)
-                if delta_t <= delta_m[u]:
-                    p_et[(e_type, e_target)]['short'] += 0.5 / N
-                else:
-                    p_et[(e_type, e_target)]['long'] += 0.5 / N
-                last_t[u] = t
+            delta_t = t - last_t.get(u, 0)
+            if delta_t <= delta_m[u]:
+                p_et[(e_type, e_target)]['short'] += 0.5 / N
+            else:
+                p_et[(e_type, e_target)]['long'] += 0.5 / N
+            last_t[u] = t
 
-                delta_t = t - last_t.get(v, 0)
-                if delta_t <= delta_m[v]:
-                    p_et[(e_type, e_target)]['short'] += 0.5 / N
-                else:
-                    p_et[(e_type, e_target)]['long'] += 0.5 / N
-                last_t[v] = t
+            delta_t = t - last_t.get(v, 0)
+            if delta_t <= delta_m[v]:
+                p_et[(e_type, e_target)]['short'] += 0.5 / N
+            else:
+                p_et[(e_type, e_target)]['long'] += 0.5 / N
+            last_t[v] = t
 
-        '''Calculate conditional entropy of H(T|E). This is the predictabilty of the time of an event given its type.'''
-        '''Temporal GNNs try to predict events in time so we are given event type (e.g., predict when an edge will be inserted here).'''
-        last_t = {}
-        for event in e:
-            e_type, e_target, e_data, t = event
-            if e_target == 'node':
-                # If target is a node, update the node with the event entropy
-                delta_t = t - last_t.get(e_data, 0)
-                if delta_t <= delta_m[e_data]:
-                    te[e_data] -= float(
-                        p_et[(e_type, e_target)]['short'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['short'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                else:
-                    te[e_data] -= float(
-                        p_et[(e_type, e_target)]['long'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['long'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                last_t[e_data] = t
-            elif e_target == 'edge':
-                # If target is an edge, update both nodes affected with the event entropy
-                u, v = e_data
-
-                delta_t = t - last_t.get(u, 0)
-                if delta_t <= delta_m[u]:
-                    te[u] -= float(
-                        p_et[(e_type, e_target)]['short'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['short'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                else:
-                    te[u] -= float(
-                        p_et[(e_type, e_target)]['long'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['long'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                last_t[u] = t
-
-                delta_t = t - last_t.get(v, 0)
-                if delta_t <= delta_m[v]:
-                    te[v] -= float(
-                        p_et[(e_type, e_target)]['short'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['short'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                else:
-                    te[v] -= float(
-                        p_et[(e_type, e_target)]['long'] *
-                        np.log2(
-                            p_et[(e_type, e_target)]['long'] / 
-                            p_e[(e_type, e_target)]
-                        )
-                    )
-                last_t[v] = t
-    else:
-        # Calculate the number of nodes in each cluster
-        N_clusters = { n: 0 for n in clusters.values() }
-        for node in graph.nodes:
-            N_clusters[clusters[node]] += 1
-
-        # Calculate the number of events that occur in each cluster
-        E_clusters = { n: 0 for n in clusters.values() }
-        for _, e_target, e_data, _ in e:
-            if e_target == 'node':
-                E_clusters[clusters[e_data]] += 1
-            elif e_target == 'edge':
-                # For an edge event, each cluster receives half of the event (totalling a single event)
-                u, v = e_data
-                E_clusters[clusters[u]] += 0.5
-                E_clusters[clusters[v]] += 0.5
-
-        # P(x) is the probability of node n being a member of cluster C
-        p_x = { n: N_clusters[n] / graph.number_of_nodes() for n in clusters.values() }
-
-        # P(x, y) is the probability of node n being apart of event e where n and e are both members
-        # of cluster C
-        p_xy = {
-            n: {
-                ('insert', 'node'): 0.0,
-                ('delete', 'node'): 0.0,
-                ('insert', 'edge'): 0.0,
-                ('delete', 'edge'): 0.0,
-            }
-            for n in clusters.values()
-        }
-
-        for e_type, e_target, e_data, _ in e:
-            if e_target == 'node':
-                p_xy[clusters[e_data]][(e_type, e_target)] += 1 / E_clusters[clusters[e_data]] * p_x[clusters[e_data]]
-            elif e_target == 'edge':
-                u, v = e_data
-                p_xy[clusters[u]][(e_type, e_target)] += 0.5 / E_clusters[clusters[u]] * p_x[clusters[u]]
-                p_xy[clusters[v]][(e_type, e_target)] += 0.5 / E_clusters[clusters[v]] * p_x[clusters[v]]
-
-        # Calculate the entropy of each node given its event type within a cluster
-        for e_type, e_target, e_data, _ in e:
-            if e_target == 'node':
-                # If the target is a node, update the node with the event entropy
+    '''Calculate conditional entropy of H(T|E). This is the predictabilty of the time of an event given its type.'''
+    '''Temporal GNNs try to predict events in time so we are given event type (e.g., predict when an edge will be inserted here).'''
+    last_t = {}
+    for event in e:
+        e_type, e_target, e_data, t = event
+        if e_target == 'node':
+            # If target is a node, update the node with the event entropy
+            delta_t = t - last_t.get(e_data, 0)
+            if delta_t <= delta_m[e_data]:
                 te[e_data] -= float(
-                    p_xy[clusters[e_data]][(e_type, e_target)] * 
+                    p_et[(e_type, e_target)]['short'] *
                     np.log2(
-                        p_xy[clusters[e_data]][(e_type, e_target)] /
-                        p_x[clusters[e_data]]
+                        p_et[(e_type, e_target)]['short'] / 
+                        p_e[(e_type, e_target)]
                     )
                 )
-            elif e_target == 'edge':
-                # If the target is an edge, update both nodes with the event entropy
-                u, v = e_data
+            else:
+                te[e_data] -= float(
+                    p_et[(e_type, e_target)]['long'] *
+                    np.log2(
+                        p_et[(e_type, e_target)]['long'] / 
+                        p_e[(e_type, e_target)]
+                    )
+                )
+            last_t[e_data] = t
+        elif e_target == 'edge':
+            # If target is an edge, update both nodes affected with the event entropy
+            u, v = e_data
+
+            delta_t = t - last_t.get(u, 0)
+            if delta_t <= delta_m[u]:
                 te[u] -= float(
-                    p_xy[clusters[u]][(e_type, e_target)] * 
+                    p_et[(e_type, e_target)]['short'] *
                     np.log2(
-                        p_xy[clusters[u]][(e_type, e_target)] /
-                        p_x[clusters[u]]
+                        p_et[(e_type, e_target)]['short'] / 
+                        p_e[(e_type, e_target)]
                     )
                 )
+            else:
+                te[u] -= float(
+                    p_et[(e_type, e_target)]['long'] *
+                    np.log2(
+                        p_et[(e_type, e_target)]['long'] / 
+                        p_e[(e_type, e_target)]
+                    )
+                )
+            last_t[u] = t
+
+            delta_t = t - last_t.get(v, 0)
+            if delta_t <= delta_m[v]:
                 te[v] -= float(
-                    p_xy[clusters[v]][(e_type, e_target)] * 
+                    p_et[(e_type, e_target)]['short'] *
                     np.log2(
-                        p_xy[clusters[v]][(e_type, e_target)] /
-                        p_x[clusters[v]]
+                        p_et[(e_type, e_target)]['short'] / 
+                        p_e[(e_type, e_target)]
                     )
                 )
+            else:
+                te[v] -= float(
+                    p_et[(e_type, e_target)]['long'] *
+                    np.log2(
+                        p_et[(e_type, e_target)]['long'] / 
+                        p_e[(e_type, e_target)]
+                    )
+                )
+            last_t[v] = t
                 
     return te
 
@@ -409,22 +364,7 @@ G.add_edge('k', 'l', t=(6, 7, 8, 9))
 G.add_edge('k', 'm', t=(8, 9))
 G.add_edge('l', 'm', t=(6, 7, 9))
 
-clusters = {
-    'a': 1,
-    'b': 1,
-    'c': 1,
-    'd': 1,
-    'e': 1,
-    'f': 1,
-    'g': 2,
-    'h': 2,
-    'i': 2,
-    'j': 2,
-    'k': 3,
-    'l': 3,
-    'm': 3,
-}
+G = basic_example_graph()
 
 e = entropy(G)
-
 print(e)
