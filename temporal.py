@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import defaultdict
 
+from utils import benchmark
+
 def slice_graph(graph: nx.Graph, t: int) -> nx.Graph:
     '''
     Take a snapshot of a temporal graph.
@@ -189,7 +191,7 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
         ('delete', 'edge'): 0.0,
     }
     
-    delta_v = defaultdict(list)
+    delta_v = defaultdict(lambda: (0, 0))
     last_t = {}
 
     for event in e:
@@ -201,20 +203,21 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
         # if an event is a long-term or short term event
         if e_target == 'node':
             delta_t = t - last_t.get(e_data, 0)
-            delta_v[e_data].append(delta_t)
+            n, mean_old = delta_v[e_data]
+            delta_v[e_data] = (n+1, mean_old + (delta_t - mean_old) / (n+1))
             last_t[e_data] = t
         elif e_target == 'edge':
             u, v = e_data
 
             delta_t = t - last_t.get(u, 0)
-            delta_v[u].append(delta_t)
+            n, mean_old = delta_v[u]
+            delta_v[u] = (n+1, mean_old + (delta_t - mean_old) / (n+1))
             last_t[u] = t
 
             delta_t = t - last_t.get(v, 0)
-            delta_v[v].append(delta_t)
+            n, mean_old = delta_v[v]
+            delta_v[v] = (n+1, mean_old + (delta_t - mean_old) / (n+1))
             last_t[v] = t
-        
-    delta_m = { v: np.mean(delta_v[v]) for v in delta_v }
 
     # P(e = E, t = T) is the probability of event e being type E and delta_t = {short-term, long-te}
     p_et = {
@@ -231,7 +234,7 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
         if e_target == 'node':
             # Node events affect one bucket so add 1 / N to the bucket
             delta_t = t - last_t.get(e_data, 0)
-            if delta_t <= delta_m[e_data]:
+            if delta_t <= delta_v[e_data][1]:
                 p_et[(e_type, e_target)]['short'] += 1 / N
             else:
                 p_et[(e_type, e_target)]['long'] += 1 / N
@@ -242,14 +245,14 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
             u, v = e_data
 
             delta_t = t - last_t.get(u, 0)
-            if delta_t <= delta_m[u]:
+            if delta_t <= delta_v[u][1]:
                 p_et[(e_type, e_target)]['short'] += 0.5 / N
             else:
                 p_et[(e_type, e_target)]['long'] += 0.5 / N
             last_t[u] = t
 
             delta_t = t - last_t.get(v, 0)
-            if delta_t <= delta_m[v]:
+            if delta_t <= delta_v[v][1]:
                 p_et[(e_type, e_target)]['short'] += 0.5 / N
             else:
                 p_et[(e_type, e_target)]['long'] += 0.5 / N
@@ -263,7 +266,7 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
         if e_target == 'node':
             # If target is a node, update the node with the event entropy
             delta_t = t - last_t.get(e_data, 0)
-            if delta_t <= delta_m[e_data]:
+            if delta_t <= delta_v[e_data][1]:
                 te[e_data] -= float(
                     p_et[(e_type, e_target)]['short'] *
                     np.log2(
@@ -285,7 +288,7 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
             u, v = e_data
 
             delta_t = t - last_t.get(u, 0)
-            if delta_t <= delta_m[u]:
+            if delta_t <= delta_v[u][1]:
                 te[u] -= float(
                     p_et[(e_type, e_target)]['short'] *
                     np.log2(
@@ -304,7 +307,7 @@ def entropy(graph: nx.Graph) -> dict[any, float]:
             last_t[u] = t
 
             delta_t = t - last_t.get(v, 0)
-            if delta_t <= delta_m[v]:
+            if delta_t <= delta_v[v][1]:
                 te[v] -= float(
                     p_et[(e_type, e_target)]['short'] *
                     np.log2(
@@ -366,5 +369,8 @@ G.add_edge('l', 'm', t=(6, 7, 9))
 
 G = basic_example_graph()
 
-e = entropy(G)
-print(e)
+# e = entropy(G)
+# print(e)
+
+runtime = benchmark(entropy, G)
+print(runtime)
