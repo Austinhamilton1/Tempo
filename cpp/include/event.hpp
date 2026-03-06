@@ -7,7 +7,6 @@
 #include <sstream>
 #include <optional>
 #include <functional>
-#include <queue>
 
 /*
  * This data structure represents an event (edge) in the graph.
