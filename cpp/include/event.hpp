@@ -7,6 +7,7 @@
 #include <sstream>
 #include <optional>
 #include <functional>
+#include <queue>
 
 /*
  * This data structure represents an event (edge) in the graph.
@@ -41,14 +42,13 @@ public:
 class CSVEventStream : public EventStream {
 private:
     std::ifstream file; // File to pull events from
+    bool header;        // Does the file have a header?
     
     /* Column indexes of the data */
     int src;
     int dest;
     int time;
     int type;
-
-    bool header;        // Does the file have a header?
 
     /* Node lookup table */
     uint32_t current_node;
@@ -63,14 +63,14 @@ public:
      * Create an instance of a CSVEventStream.
      * Arguments:
      *     const std::string& path - File name to ingest.
+     *     bool header - Does the file have a header?
      *     int src - Column index of the source node.
      *     int dest - Column index of the destination node.
      *     int type - Column index of the event type.
      *     int time - Column index of the timestamp.
-     *     bool header - Does the file have a header?
      */
-    CSVEventStream(const std::string& path, int src, int dest, int type, int time, bool header)
-        : file(path), src(src), dest(dest), time(time), type(type), header(header), current_node(0), current_type(0) {}
+    CSVEventStream(const std::string& path, bool header=false, int src=0, int dest=1, int type=2, int time=3)
+        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {}
 
     /*
      * Get the next event from the CSV file.
@@ -106,14 +106,13 @@ public:
 class TSVEventStream : public EventStream {
 private:
     std::ifstream file; // File to pull events from
+    bool header;        // Does the file have a header?
     
     /* Column indexes of the data */
     int src;
     int dest;
     int time;
     int type;
-
-    bool header;        // Does the file have a header?
 
     /* Node lookup table */
     uint32_t current_node;
@@ -128,14 +127,14 @@ public:
      * Create an instance of a TSVEventStream.
      * Arguments:
      *     const std::string& path - File name to ingest.
+     *     bool header - Does the file have a header?
      *     int src - Column index of the source node.
      *     int dest - Column index of the destination node.
      *     int type - Column index of the event type.
      *     int time - Column index of the timestamp.
-     *     bool header - Does the file have a header?
      */
-    TSVEventStream(const std::string& path, int src, int dest, int type, int time, bool header)
-        : file(path), src(src), dest(dest), time(time), type(type), header(header), current_node(0), current_type(0) {}
+    TSVEventStream(const std::string& path, int header=false, int src=0, int dest=1, int type=2, int time=3)
+        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {}
 
     /*
      * Get the next event from the CSV file.

@@ -4,7 +4,7 @@
 #include "event.hpp"
 
 int main(int argc, char **argv) {
-    CSVEventStream stream("../data/soc-sign-bitcoinotc.csv", 0, 1, 2, 3, false);
+    CSVEventStream stream("../data/soc-sign-bitcoinotc.csv");
     FilterEventStream filter(stream, [&stream](const Event &e) {
         return e.type == stream.lookup_type("8");
     });
