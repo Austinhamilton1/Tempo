@@ -2,19 +2,13 @@
 #include <functional>
 
 #include "event.hpp"
+#include "tgraph.hpp"
 
 int main(int argc, char **argv) {
-    CSVEventStream stream("../data/soc-sign-bitcoinotc.csv");
-    FilterEventStream filter(stream, [&stream](const Event &e) {
-        return e.type == stream.lookup_type("8");
-    });
+    CSVEventStream stream("~/code/Tempo/data/soc-sign-bitcoinotc.csv");
+    TGraph graph;
 
-    Event e;
-
-    for(int i = 0; i < 5; i++) {
-        if(!filter.next(e)) break;
-        std::cout << "Event " << i+1 << ": (" << e.src << ", " << e.dest << ", " << e.type << ", " << e.t << ")" << std::endl; 
-    }
+    graph.ingest(stream);
 
     return 0;
 }

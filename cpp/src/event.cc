@@ -14,12 +14,6 @@ bool CSVEventStream::next(Event& e) {
 
     // No more data
     if(!std::getline(file, line)) return false;
-    
-    // Consume header
-    if(header) {
-        if(!std::getline(file, line)) return false;
-        header = false;
-    }
 
     /* Split the line on commas */
     std::stringstream ss(line);
@@ -47,9 +41,23 @@ bool CSVEventStream::next(Event& e) {
     e.src = node_lookup[cols[src]];
     e.dest = node_lookup[cols[dest]];
     if(type > 0) e.type = type_lookup[cols[type]];
-    e.t = std::stof(cols[time]);
+    e.t = std::stoull(cols[time]);
 
     return true;
+}
+
+/*
+ * Reset the file.
+ */
+void CSVEventStream::reset() {
+    file.clear();
+    file.seekg(0);
+
+    // Consume header
+    if(header) {
+        std::string tmp;
+        std::getline(file, tmp);
+    }
 }
 
 /*
@@ -112,12 +120,6 @@ bool TSVEventStream::next(Event& e) {
 
     // No more data
     if(!std::getline(file, line)) return false;
-    
-    // Consume header
-    if(header) {
-        if(!std::getline(file, line)) return false;
-        header = false;
-    }
 
     /* Split the line on commas */
     std::stringstream ss(line);
@@ -145,21 +147,21 @@ bool TSVEventStream::next(Event& e) {
     e.src = node_lookup[cols[src]];
     e.dest = node_lookup[cols[dest]];
     if(type > 0) e.type = type_lookup[cols[type]];
-    e.t = std::stof(cols[time]);
+    e.t = std::stoull(cols[time]);
 
     return true;
 }
 
 /*
- * Get the next event from the base stream with the filter applied.
- * Arguments:
- *     Event& e - Store the next event here.
- * Returns:
- *     bool - true if there is another event, false otherwise.
+ * Reset the file.
  */
-bool FilterEventStream::next(Event& e) {
-    while(input.next(e)) {
-        if(filter(e)) return true;
+void TSVEventStream::reset() {
+    file.clear();
+    file.seekg(0);
+
+    // Consume header
+    if(header) {
+        std::string tmp;
+        std::getline(file, tmp);
     }
-    return false;
 }

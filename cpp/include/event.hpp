@@ -16,10 +16,10 @@ struct Event {
     uint32_t    src;    // Source node
     uint32_t    dest;   // Destination node
     uint16_t    type;   // Type of event
-    float       t;      // Timestamp
+    uint32_t    t;      // Timestamp
 
     Event() : src(0), dest(0), type(0), t(0) {}
-    Event(uint32_t src, uint32_t dest, uint16_t type, float t) 
+    Event(uint32_t src, uint32_t dest, uint16_t type, uint32_t t) 
         : src(src), dest(dest), type(type), t(t) {}
 };
 
@@ -33,6 +33,9 @@ public:
 
     // Get the next event in the stream
     virtual bool next(Event &) = 0;
+
+    // Reset the event stream
+    virtual void reset() = 0;
 };
 
 /*
@@ -69,7 +72,9 @@ public:
      *     int time - Column index of the timestamp.
      */
     CSVEventStream(const std::string& path, bool header=false, int src=0, int dest=1, int type=2, int time=3)
-        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {}
+        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {
+            if(header) reset();
+        }
 
     /*
      * Get the next event from the CSV file.
@@ -79,6 +84,11 @@ public:
      *     bool - true if there is another event, false otherwise.
      */
     bool next(Event &e) override;
+
+    /*
+     * Reset the file.
+     */
+    void reset() override;
 
     /*
      * Get the node ID of a node based on what it was inputted as.
@@ -133,7 +143,9 @@ public:
      *     int time - Column index of the timestamp.
      */
     TSVEventStream(const std::string& path, int header=false, int src=0, int dest=1, int type=2, int time=3)
-        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {}
+        : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {
+            if(header) reset();
+        }
 
     /*
      * Get the next event from the CSV file.
@@ -143,6 +155,11 @@ public:
      *     bool - true if there is another event, false otherwise.
      */
     bool next(Event &e) override;
+
+    /*
+     * Reset the file.
+     */
+    void reset() override;
 
     /*
      * Get the node ID of a node based on what it was inputted as.
@@ -161,32 +178,4 @@ public:
      *     std::optional<uint16_t> - The unique type ID if it exists, otherwise null.
      */
     std::optional<uint16_t> lookup_type(const std::string& type);
-};
-
-/*
- * A filter stream sits on top of another stream and filters based on the event.
- */
-class FilterEventStream : public EventStream {
-private:
-    EventStream& input;
-    std::function<bool(const Event& e)> filter;
-
-public:
-    /*
-     * Create a FilterEventStream.
-     * Arguments:
-     *     EventStream& stream - Base stream to filter on.
-     *     std::function<bool(const Event& e, const EventStream& stream)> filter - Filter based on this function (return true to keep, false to discard).
-     */
-    FilterEventStream(EventStream& stream, std::function<bool(const Event& e)> filter)
-        : input(stream), filter(filter) {};
-
-    /*
-     * Get the next event from the base stream with the filter applied.
-     * Arguments:
-     *     Event& e - Store the next event here.
-     * Returns:
-     *     bool - true if there is another event, false otherwise.
-     */
-    bool next(Event& e) override;
 };
