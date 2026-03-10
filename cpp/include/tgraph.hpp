@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <span>
+#include <random>
 
 #include "event.hpp"
 
@@ -33,18 +34,18 @@ struct EdgeRange {
 class TGraph {
 private:
     // Edge arrays
-    std::vector<uint32_t>   neighbor;               // Destination endpoints
-    std::vector<uint64_t>   timestamp;              // Time stamp of edge
-    std::vector<uint16_t>   event_type;             // Type of event an edge represents
+    std::vector<uint32_t>   neighbor;       // Destination endpoints
+    std::vector<uint64_t>   timestamp;      // Time stamp of edge
+    std::vector<uint16_t>   event_type;     // Type of event an edge represents
 
     // Node index
-    std::vector<uint32_t>   node_index;             // T-CSR pointer
-    std::vector<uint8_t>    node_active;            // Mask for node deletion
+    std::vector<uint32_t>   node_index;     // T-CSR pointer
+    std::vector<uint8_t>    node_active;    // Mask for node deletion
 
     // Node embeddings
-    std::vector<std::vector<float>> X;              // Feature embeddings
-    std::vector<std::vector<float>> S;              // Structural embeddings
-    std::vector<std::vector<std::vector<float>>> T; // Temporal embeddings
+    std::vector<float>      X;              // Feature embeddings
+    std::vector<float>      S;              // Structural embeddings
+    std::vector<float>      T;              // Temporal embeddings
 
     /*
      * Reorder edges based on indexed permutation.
@@ -67,13 +68,54 @@ public:
     void ingest(EventStream& stream);
 
     /*
+     * Return the number of nodes in the graph.
+     * Returns:
+     *     size_t - Number of nodes in the graph.
+     */
+    size_t num_nodes() const;
+
+    /*
+     * Returns the number of temporal edges in the graph.
+     * Returns:
+     *     size_t - Number of temporal edges in the graph.
+     */
+    size_t num_edges() const;
+
+    /*
+     * Get the neighbor at a specific edge ID.
+     * Arguments:
+     *     uint32_t edge_id - Index into the neighbor array.
+     * Returns:
+     *     uint32_t - Value of neighbor[edge_id].
+     */
+    uint32_t get_neighbor(uint32_t edge_id) const;
+
+    /*
+     * Get the timestamp at a specific edge ID.
+     * Arguments: 
+     *     uint32_t edge_id - Index into the timestamp array.
+     * Returns:
+     *     uint32_t - Value of timestamp[edge_id].
+     */
+    uint32_t get_timestamp(uint32_t edge_id) const;
+ 
+    /*
+     * Get the event type at a specific edge ID.
+     * Arguments:
+     *     uint32_t edge_id - Index into the event_type array.
+     * Returns:
+     *     uint16_t - Value of event_type[edge_id].
+     */
+    uint16_t get_event_type(uint32_t edge_id) const;
+
+    /*
      * Get the temporal neighbors of a node between a start and end time.
      * Arguments:
      *     uint32_t u - Query this node.
      * Returns:
      *     EdgeRange - The temporal neighborhood of the node.
      */
-    EdgeRange neighbors_range(uint32_t u);
+    EdgeRange neighbors_range(uint32_t u) const;
 
     /*
      * Get the temporal neighbors of a node between a start and end time.
@@ -83,7 +125,7 @@ public:
      * Returns:
      *     EdgeRange - The temporal neighborhood of the node.
      */
-    EdgeRange neighbors_range(uint32_t u, uint32_t start_time);
+    EdgeRange neighbors_range(uint32_t u, uint32_t start_time) const;
 
     /*
      * Get the temporal neighbors of a node between a start and end time.
@@ -94,5 +136,26 @@ public:
      * Returns:
      *     EdgeRange - The temporal neighborhood of the node.
      */
-    EdgeRange neighbors_range(uint32_t u, uint32_t start_time, uint32_t end_time);
+    EdgeRange neighbors_range(uint32_t u, uint32_t start_time, uint32_t end_time) const;
+
+    /*
+     * Return the temporal degree of a node.
+     * Arguments:
+     *     uint32_t - Query this node.
+     * Returns:
+     *     size_t - Temporal degree of node u.
+     */
+    size_t degree(uint32_t u) const;
+
+    /*
+     * Check if an edge exists between two nodes between two times.
+     * Arguments:
+     *     uint32_t u - Source node.
+     *     uint32_t v - Destination node.
+     *     uint32_t start_time - Check for edges on or after this time.
+     *     uint32_t end_time - Check for edges on or before this time.
+     * Returns:
+     *     bool - true if an edge exists, false otherwise.
+     */
+    bool has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_time) const;
 };
