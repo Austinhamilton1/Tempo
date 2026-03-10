@@ -2,10 +2,11 @@
 
 #include <cstdint>
 #include <vector>
-#include <span>
-#include <random>
+#include <tuple>
 
 #include "event.hpp"
+
+struct NeighborView;
 
 /*
  * Represents a range of edges. Using start and end,
@@ -139,6 +140,36 @@ public:
     EdgeRange neighbors_range(uint32_t u, uint32_t start_time, uint32_t end_time) const;
 
     /*
+     * Get the temporal neighbors of a node between a start and end time.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u) const;
+
+    /*
+     * Get the temporal neighbors of a node between a start and end time.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint32_t start_time - Get neighbors starting at this time.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u, uint32_t start_time) const;
+
+    /*
+     * Get the temporal neighbors of a node between a start and end time.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint32_t start_time - Get neighbors starting at this time.
+     *     uint32_t end_time - Get neighbors up until this time.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u, uint32_t start_time, uint32_t end_time) const;
+
+    /*
      * Return the temporal degree of a node.
      * Arguments:
      *     uint32_t - Query this node.
@@ -158,4 +189,54 @@ public:
      *     bool - true if an edge exists, false otherwise.
      */
     bool has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_time) const;
+};
+
+/*
+ * This data structure is used to iterate through
+ * neighbors of a node.
+ */
+struct NeighborIterator {
+    const TGraph *g;
+    uint32_t pos;
+
+    NeighborIterator(const TGraph *g, uint32_t pos)
+        : g(g), pos(pos) {};
+
+    NeighborIterator& operator++() {
+        pos++;
+        return *this;
+    }
+
+    bool operator==(const NeighborIterator& other) const {
+        return pos == other.pos;
+    }
+    
+    bool operator!=(const NeighborIterator& other) const {
+        return pos != other.pos;
+    }
+
+    std::tuple<uint32_t, uint32_t, uint16_t> operator*() const {
+        return {
+            g->get_neighbor(pos),
+            g->get_timestamp(pos),
+            g->get_event_type(pos)
+        };
+    }
+};
+
+/*
+ * Give data from a TGraph's neighbor function.
+ */
+struct NeighborView {
+    const TGraph *g;
+    uint32_t start;
+    uint32_t stop;
+
+    NeighborIterator begin() const {
+        return NeighborIterator(g, start);
+    }
+
+    NeighborIterator end() const {
+        return NeighborIterator(g, stop);
+    }
 };

@@ -142,7 +142,7 @@ public:
      *     int type - Column index of the event type.
      *     int time - Column index of the timestamp.
      */
-    TSVEventStream(const std::string& path, int header=false, int src=0, int dest=1, int type=2, int time=3)
+    TSVEventStream(const std::string& path, bool header=false, int src=0, int dest=1, int type=2, int time=3)
         : file(path), header(header), src(src), dest(dest), time(time), type(type), current_node(0), current_type(0) {
             if(header) reset();
         }

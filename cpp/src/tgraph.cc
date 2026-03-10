@@ -189,7 +189,7 @@ EdgeRange TGraph::neighbors_range(uint32_t u, uint32_t start_time) const {
         start_time
     );
 
-    return { it - timestamp.begin(), end };
+    return { (uint32_t)(it - timestamp.begin()), end };
 }
 
 /*
@@ -224,7 +224,52 @@ EdgeRange TGraph::neighbors_range(uint32_t u, uint32_t start_time, uint32_t end_
         end_time
     );
 
-    return { lit - timestamp.begin(), hit - timestamp.begin() };
+    return { (uint32_t)(lit - timestamp.begin()), (uint32_t)(hit - timestamp.begin()) };
+}
+
+/*
+ * Get all temporal neighbors of a node.
+ * Arguments:
+ *     uint32_t u - Query this node.
+ * Returns:
+ *     NeighborView - The temporal neighborhood of the node.
+ */
+NeighborView TGraph::neighbors(uint32_t u) const {
+    assert(u + 1 < node_index.size());
+
+    auto r = neighbors_range(u);
+    return NeighborView{ this, r.start, r.end };
+}
+
+/*
+ * Get the temporal neighbors of a node after a start time.
+ * Arguments:
+ *     uint32_t u - Query this node.
+ *     uint32_t start_time - Get neighbors starting at this time.
+ * Returns:
+ *     NeighborView - The temporal neighborhood of the node.
+ */
+NeighborView TGraph::neighbors(uint32_t u, uint32_t start_time) const {
+    assert(u + 1 < node_index.size());
+
+    auto r = neighbors_range(u, start_time);
+    return NeighborView{ this, r.start, r.end };
+}
+
+/*
+ * Get the temporal neighbors of a node between a start and end time.
+ * Arguments:
+ *     uint32_t u - Query this node.
+ *     uint32_t start_time - Get neighbors starting at this time.
+ *     uint32_t end_time - Get neighbors up until this time.
+ * Returns:
+ *     NeighborView - The temporal neighborhood of the node.
+ */
+NeighborView TGraph::neighbors(uint32_t u, uint32_t start_time, uint32_t end_time) const {
+    assert(u + 1 < node_index.size());
+
+    auto r = neighbors_range(u, end_time);
+    return NeighborView{ this, r.start, r.end };
 }
 
 /*
