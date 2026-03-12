@@ -115,11 +115,11 @@ PYBIND11_MODULE(tempo, m) {
             py::overload_cast<uint32_t>(&TGraph::neighbors_range, py::const_))
 
         .def("neighbors_range",
-            py::overload_cast<uint32_t,uint32_t>(
+            py::overload_cast<uint32_t, uint64_t>(
                 &TGraph::neighbors_range, py::const_))
 
         .def("neighbors_range",
-            py::overload_cast<uint32_t,uint32_t,uint32_t>(
+            py::overload_cast<uint32_t, uint64_t, uint64_t>(
                 &TGraph::neighbors_range, py::const_))
 
         /*
@@ -129,10 +129,97 @@ PYBIND11_MODULE(tempo, m) {
             py::overload_cast<uint32_t>(&TGraph::neighbors, py::const_))
 
         .def("neighbors",
-            py::overload_cast<uint32_t,uint32_t>(
+            py::overload_cast<uint32_t, uint64_t>(
                 &TGraph::neighbors, py::const_))
 
         .def("neighbors",
-            py::overload_cast<uint32_t,uint32_t,uint32_t>(
-                &TGraph::neighbors, py::const_));
+            py::overload_cast<uint32_t, uint64_t, uint64_t>(
+                &TGraph::neighbors, py::const_))
+
+        .def("neighbors_array",
+            [](TGraph &g, uint32_t u) {
+                EdgeRange r = g.neighbors_range(u);
+                size_t n = r.size();
+
+                auto nbr = py::array_t<uint32_t>(
+                    {n},
+                    {sizeof(uint32_t)},
+                    g.get_neighbor_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto ts = py::array_t<uint64_t>(
+                    {n},
+                    {sizeof(uint64_t)},
+                    g.get_timestamp_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto et = py::array_t<uint16_t>(
+                    {n},
+                    {sizeof(uint16_t)},
+                    g.get_event_type_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                return py::make_tuple(nbr, ts, et);
+            })
+
+        .def("neighbors_array",
+            [](TGraph &g, uint32_t u, uint64_t start_time) {
+                EdgeRange r = g.neighbors_range(u, start_time);
+                size_t n = r.size();
+
+                auto nbr = py::array_t<uint32_t>(
+                    {n},
+                    {sizeof(uint32_t)},
+                    g.get_neighbor_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto ts = py::array_t<uint64_t>(
+                    {n},
+                    {sizeof(uint64_t)},
+                    g.get_timestamp_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto et = py::array_t<uint16_t>(
+                    {n},
+                    {sizeof(uint16_t)},
+                    g.get_event_type_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                return py::make_tuple(nbr, ts, et);
+            })
+
+        .def("neighbors_array",
+            [](TGraph &g, uint32_t u, uint64_t start_time, uint64_t end_time) {
+                EdgeRange r = g.neighbors_range(u, start_time, end_time);
+                size_t n = r.size();
+
+                auto nbr = py::array_t<uint32_t>(
+                    {n},
+                    {sizeof(uint32_t)},
+                    g.get_neighbor_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto ts = py::array_t<uint64_t>(
+                    {n},
+                    {sizeof(uint64_t)},
+                    g.get_timestamp_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                auto et = py::array_t<uint16_t>(
+                    {n},
+                    {sizeof(uint16_t)},
+                    g.get_event_type_ptr() + r.start,
+                    py::cast(&g)
+                );
+
+                return py::make_tuple(nbr, ts, et);
+            });
 }

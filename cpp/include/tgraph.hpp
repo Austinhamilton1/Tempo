@@ -83,93 +83,6 @@ public:
     size_t num_edges() const;
 
     /*
-     * Get the neighbor at a specific edge ID.
-     * Arguments:
-     *     uint32_t edge_id - Index into the neighbor array.
-     * Returns:
-     *     uint32_t - Value of neighbor[edge_id].
-     */
-    uint32_t get_neighbor(uint32_t edge_id) const;
-
-    /*
-     * Get the timestamp at a specific edge ID.
-     * Arguments: 
-     *     uint32_t edge_id - Index into the timestamp array.
-     * Returns:
-     *     uint32_t - Value of timestamp[edge_id].
-     */
-    uint32_t get_timestamp(uint32_t edge_id) const;
- 
-    /*
-     * Get the event type at a specific edge ID.
-     * Arguments:
-     *     uint32_t edge_id - Index into the event_type array.
-     * Returns:
-     *     uint16_t - Value of event_type[edge_id].
-     */
-    uint16_t get_event_type(uint32_t edge_id) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     * Returns:
-     *     EdgeRange - The temporal neighborhood of the node.
-     */
-    EdgeRange neighbors_range(uint32_t u) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     *     uint32_t start_time - Get neighbors starting at this time.
-     * Returns:
-     *     EdgeRange - The temporal neighborhood of the node.
-     */
-    EdgeRange neighbors_range(uint32_t u, uint32_t start_time) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     *     uint32_t start_time - Get neighbors starting at this time.
-     *     uint32_t end_time - Get neighbors up until this time.
-     * Returns:
-     *     EdgeRange - The temporal neighborhood of the node.
-     */
-    EdgeRange neighbors_range(uint32_t u, uint32_t start_time, uint32_t end_time) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     * Returns:
-     *     NeighborView - The temporal neighborhood of the node.
-     */
-    NeighborView neighbors(uint32_t u) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     *     uint32_t start_time - Get neighbors starting at this time.
-     * Returns:
-     *     NeighborView - The temporal neighborhood of the node.
-     */
-    NeighborView neighbors(uint32_t u, uint32_t start_time) const;
-
-    /*
-     * Get the temporal neighbors of a node between a start and end time.
-     * Arguments:
-     *     uint32_t u - Query this node.
-     *     uint32_t start_time - Get neighbors starting at this time.
-     *     uint32_t end_time - Get neighbors up until this time.
-     * Returns:
-     *     NeighborView - The temporal neighborhood of the node.
-     */
-    NeighborView neighbors(uint32_t u, uint32_t start_time, uint32_t end_time) const;
-
-    /*
      * Return the temporal degree of a node.
      * Arguments:
      *     uint32_t - Query this node.
@@ -189,6 +102,114 @@ public:
      *     bool - true if an edge exists, false otherwise.
      */
     bool has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_time) const;
+
+    /*
+     * Get the neighbor at a specific edge ID.
+     * Arguments:
+     *     uint32_t edge_id - Index into the neighbor array.
+     * Returns:
+     *     uint32_t - Value of neighbor[edge_id].
+     */
+    uint32_t get_neighbor(uint32_t edge_id) const;
+
+    /*
+     * Get a constant pointer to the neighbor array.
+     * Returns:
+     *     const uint32_t * - Constant pointer.
+     */
+    const uint32_t *get_neighbor_ptr() const;
+
+    /*
+     * Get the timestamp at a specific edge ID.
+     * Arguments: 
+     *     uint32_t edge_id - Index into the timestamp array.
+     * Returns:
+     *     uint64_t - Value of timestamp[edge_id].
+     */
+    uint64_t get_timestamp(uint32_t edge_id) const;
+
+    /*
+     * Get a constant pointer to the timestamp array.
+     * Returns:
+     *     const uint64_t * - Constant pointer.
+     */
+    const uint64_t *get_timestamp_ptr() const;
+ 
+    /*
+     * Get the event type at a specific edge ID.
+     * Arguments:
+     *     uint32_t edge_id - Index into the event_type array.
+     * Returns:
+     *     uint16_t - Value of event_type[edge_id].
+     */
+    uint16_t get_event_type(uint32_t edge_id) const;
+
+    /*
+     * Get a constant pointer to the event_type array.
+     * Returns:
+     *     const uint16_t * - Constant pointer.
+     */
+    const uint16_t *get_event_type_ptr() const;
+
+    /*
+     * Get the temporal neighbors of a node.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     * Returns:
+     *     EdgeRange - The temporal neighborhood of the node.
+     */
+    EdgeRange neighbors_range(uint32_t u) const;
+
+    /*
+     * Get the temporal neighbors of a node after a start time.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint64_t start_time - Get neighbors starting at this time.
+     * Returns:
+     *     EdgeRange - The temporal neighborhood of the node.
+     */
+    EdgeRange neighbors_range(uint32_t u, uint64_t start_time) const;
+
+    /*
+     * Get the temporal neighbors of a node between a start and end time.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint64_t start_time - Get neighbors starting at this time.
+     *     uint64_t end_time - Get neighbors up until this time.
+     * Returns:
+     *     EdgeRange - The temporal neighborhood of the node.
+     */
+    EdgeRange neighbors_range(uint32_t u, uint64_t start_time, uint64_t end_time) const;
+
+    /*
+     * Get the temporal neighbors of a node as an iterator.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u) const;
+
+    /*
+     * Get the temporal neighbors of a node after a start time as an iterator.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint64_t start_time - Get neighbors starting at this time.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u, uint64_t start_time) const;
+
+    /*
+     * Get the temporal neighbors of a node between a start and end time as an iterator.
+     * Arguments:
+     *     uint32_t u - Query this node.
+     *     uint64_t start_time - Get neighbors starting at this time.
+     *     uint64_t end_time - Get neighbors up until this time.
+     * Returns:
+     *     NeighborView - The temporal neighborhood of the node.
+     */
+    NeighborView neighbors(uint32_t u, uint64_t start_time, uint64_t end_time) const;
 };
 
 /*
