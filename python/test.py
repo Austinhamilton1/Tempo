@@ -19,7 +19,7 @@ if __name__ == '__main__':
     for u in range(min(10, len(nodes))):
         print(f'Neighbors tests for node: {nodes[u]}')
         print('Non-batched:')
-        print(benchmark(neighbors_test, g, 3))
+        print(benchmark(neighbors_test, g, nodes[u]))
         print('Batched:')
-        print(benchmark(neighbors_array_test, g, 3))
+        print(benchmark(neighbors_array_test, g, nodes[u]))
         print('-' * 10)
