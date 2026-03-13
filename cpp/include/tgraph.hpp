@@ -92,16 +92,37 @@ public:
     size_t degree(uint32_t u) const;
 
     /*
+     * Check if an edge ever exists between two nodes.
+     * Arguments:
+     *     uint32_t u - Source node.
+     *     uint32_t v - Destination node.
+     * Returns:
+     *     bool - true if an edge exists, false otherwise.
+     */
+    bool has_edge(uint32_t u, uint32_t v) const;
+
+    /*
+     * Check if an edge exists between two nodes after a certain time.
+     * Arguments:
+     *     uint32_t u - Source node.
+     *     uint32_t v - Destination node.
+     *     uint64_t start_time - Check for edges after this time.
+     * Returns:
+     *     bool - true if an edge exists, false otherwise.
+     */
+    bool has_edge(uint32_t u, uint32_t v, uint64_t start_time) const;
+
+    /*
      * Check if an edge exists between two nodes between two times.
      * Arguments:
      *     uint32_t u - Source node.
      *     uint32_t v - Destination node.
-     *     uint32_t start_time - Check for edges on or after this time.
-     *     uint32_t end_time - Check for edges on or before this time.
+     *     uint64_t start_time - Check for edges on or after this time.
+     *     uint64_t end_time - Check for edges on or before this time.
      * Returns:
      *     bool - true if an edge exists, false otherwise.
      */
-    bool has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_time) const;
+    bool has_edge(uint32_t u, uint32_t v, uint64_t start_time, uint64_t end_time) const;
 
     /*
      * Get the neighbor at a specific edge ID.

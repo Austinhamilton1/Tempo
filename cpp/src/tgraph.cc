@@ -187,9 +187,52 @@ const uint16_t *TGraph::get_event_type_ptr() const {
  *     size_t - The temporal degree of node u.
  */
 size_t TGraph::degree(uint32_t u) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return 0;
 
     return node_index[u+1] - node_index[u];
+}
+
+/*
+ * Check if an edge ever exists between two nodes.
+ * Arguments:
+ *     uint32_t u - Source node.
+ *     uint32_t v - Destination node.
+ * Returns:
+ *     bool - true if an edge exists, false otherwise.
+ */
+bool TGraph::has_edge(uint32_t u, uint32_t v) const {
+    // Get all edges
+    auto r = neighbors_range(u);
+
+    // Check if any of the edges connect to v
+    if(r.size() == 0) return 0;
+    for(size_t w = r.start; w < r.end; w++) {
+        if(neighbor[w] == v) return true;
+    }
+
+    return false;
+}
+
+/*
+ * Check if an edge exists between two nodes after a certain time.
+ * Arguments:
+ *     uint32_t u - Source node.
+ *     uint32_t v - Destination node.
+ *     uint64_t start_time - Check for edges after this time.
+ * Returns:
+ *     bool - true if an edge exists, false otherwise.
+ */
+bool TGraph::has_edge(uint32_t u, uint32_t v, uint64_t start_time) const {
+    // Get all edges after the start time
+    auto r = neighbors_range(u, start_time);
+
+    // Check if any of the edges in the time window connect to v
+    if(r.size() == 0) return false;
+    for(size_t w = r.start; w < r.end; w++) {
+        if(neighbor[w] == v) return true;
+    }
+
+    return false;
 }
 
 /*
@@ -197,18 +240,18 @@ size_t TGraph::degree(uint32_t u) const {
  * Arguments:
  *     uint32_t u - Source node.
  *     uint32_t v - Destination node.
- *     uint32_t start_time - Check for edges on or after this time.
- *     uint32_t end_time - Check for edges on or before this time.
+ *     uint64_t start_time - Check for edges on or after this time.
+ *     uint64_t end_time - Check for edges on or before this time.
  * Returns:
  *     bool - true if an edge exists, false otherwise.
  */
-bool TGraph::has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_time) const {
+bool TGraph::has_edge(uint32_t u, uint32_t v, uint64_t start_time, uint64_t end_time) const {
     // Get all edges within the time window
-    EdgeRange range = neighbors_range(u, start_time, end_time);
+    auto r = neighbors_range(u, start_time, end_time);
 
     // Check if any of the edges in the time window connect to v
-    if(range.size() == 0) return false;
-    for(size_t w = range.start; w < range.end; w++) {
+    if(r.size() == 0) return false;
+    for(size_t w = r.start; w < r.end; w++) {
         if(neighbor[w] == v) return true;
     }
 
@@ -223,7 +266,7 @@ bool TGraph::has_edge(uint32_t u, uint32_t v, uint32_t start_time, uint32_t end_
  *     EdgeRange - The temporal neighborhood of the node.
  */
 EdgeRange TGraph::neighbors_range(uint32_t u) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     return { node_index[u], node_index[u+1] };
 }
@@ -237,7 +280,7 @@ EdgeRange TGraph::neighbors_range(uint32_t u) const {
  *     EdgeRange - The temporal neighborhood of the node.
  */
 EdgeRange TGraph::neighbors_range(uint32_t u, uint64_t start_time) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     uint32_t start = node_index[u];
     uint32_t end = node_index[u+1];
@@ -265,7 +308,7 @@ EdgeRange TGraph::neighbors_range(uint32_t u, uint64_t start_time) const {
  *     EdgeRange - The temporal neighborhood of the node.
  */
 EdgeRange TGraph::neighbors_range(uint32_t u, uint64_t start_time, uint64_t end_time) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     uint32_t start = node_index[u];
     uint32_t end = node_index[u+1];
@@ -298,7 +341,7 @@ EdgeRange TGraph::neighbors_range(uint32_t u, uint64_t start_time, uint64_t end_
  *     NeighborView - The temporal neighborhood of the node.
  */
 NeighborView TGraph::neighbors(uint32_t u) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     auto r = neighbors_range(u);
     return NeighborView{ this, r.start, r.end };
@@ -313,7 +356,7 @@ NeighborView TGraph::neighbors(uint32_t u) const {
  *     NeighborView - The temporal neighborhood of the node.
  */
 NeighborView TGraph::neighbors(uint32_t u, uint64_t start_time) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     auto r = neighbors_range(u, start_time);
     return NeighborView{ this, r.start, r.end };
@@ -329,7 +372,7 @@ NeighborView TGraph::neighbors(uint32_t u, uint64_t start_time) const {
  *     NeighborView - The temporal neighborhood of the node.
  */
 NeighborView TGraph::neighbors(uint32_t u, uint64_t start_time, uint64_t end_time) const {
-    assert(u + 1 < node_index.size());
+    if(u + 1 >= node_index.size()) return { 0, 0 };
 
     auto r = neighbors_range(u, start_time, end_time);
     return NeighborView{ this, r.start, r.end };

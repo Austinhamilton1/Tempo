@@ -102,11 +102,17 @@ PYBIND11_MODULE(tempo, m) {
         .def("get_timestamp", &TGraph::get_timestamp)
         .def("get_event_type", &TGraph::get_event_type)
 
-        .def("has_edge", &TGraph::has_edge,
-            py::arg("u"),
-            py::arg("v"),
-            py::arg("start_time"),
-            py::arg("end_time"))
+        /*
+         * has_edge overloads
+         */
+        .def("has_edge", 
+            py::overload_cast<uint32_t, uint32_t>(&TGraph::has_edge, py::const_))
+
+        .def("has_edge",
+            py::overload_cast<uint32_t, uint32_t, uint64_t>(&TGraph::has_edge, py::const_))
+
+        .def("has_edge",
+            py::overload_cast<uint32_t, uint32_t, uint64_t, uint64_t>(&TGraph::has_edge, py::const_))
 
         /*
          * neighbors_range overloads
